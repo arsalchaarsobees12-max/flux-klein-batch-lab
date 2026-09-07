@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Flux Batch Lab</title>
+  <meta name="description" content="Turn a list of prompts into a batch of images with FLUX.2 [klein] 4B, then download them as a ZIP." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="topbar__identity">
+      <h1 class="topbar__title">Flux Batch Lab</h1>
+      <p class="topbar__subtitle">@cf/black-forest-labs/flux-2-klein-4b · via Cloudflare Workers AI</p>
+    </div>
+
+    <div class="topbar__status" id="statusBadges" aria-live="polite">
+      <span class="badge badge--idle" data-role="badge-queued" hidden>0 queued</span>
+      <span class="badge badge--running" data-role="badge-running" hidden>0 generating</span>
+      <span class="badge badge--done" data-role="badge-done" hidden>0 done</span>
+      <span class="badge badge--error" data-role="badge-error" hidden>0 failed</span>
+    </div>
+
+    <button class="btn btn--primary" id="downloadBtn" hidden>
+      Download <span id="downloadCount">0</span> images
+    </button>
+  </header>
+
+  <main class="layout">
+
+    <section class="panel panel--input" aria-label="Prompt queue">
+
+      <div class="field">
+        <div class="field__label-row">
+          <label for="promptsInput">Prompts — one per line</label>
+          <span class="field__hint" id="promptCount">0 prompts</span>
+        </div>
+        <textarea
+          id="promptsInput"
+          placeholder="a red fox reading a paperback book, studio lighting&#10;the same fox now wearing round glasses&#10;the fox asleep on top of the book"
+          spellcheck="false"
+        ></textarea>
+      </div>
+
+      <div class="field">
+        <div class="field__label-row">
+          <label>Reference images <span class="field__hint">optional · applied to every prompt · max 4</span></label>
+        </div>
+        <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Add reference images">
+          <div class="dropzone__thumbs" id="referenceThumbs"></div>
+          <div class="dropzone__prompt" id="dropzonePrompt">
+            <span>Drop images here, or click to browse</span>
+          </div>
+          <input type="file" id="fileInput" accept="image/*" multiple hidden />
+        </div>
+      </div>
+
+      <div class="field field--settings">
+        <div class="setting">
+          <label for="widthInput">Width</label>
+          <input type="number" id="widthInput" min="256" max="1920" step="64" value="1024" />
+        </div>
+        <div class="setting">
+          <label for="heightInput">Height</label>
+          <input type="number" id="heightInput" min="256" max="1920" step="64" value="768" />
+        </div>
+        <div class="setting">
+          <label for="guidanceInput">Guidance</label>
+          <input type="number" id="guidanceInput" min="0" max="20" step="0.5" placeholder="auto" />
+        </div>
+        <div class="setting">
+          <label for="seedInput">Seed</label>
+          <input type="number" id="seedInput" placeholder="random" />
+        </div>
+      </div>
+
+      <div class="field__hint field__hint--note" id="seedNote"></div>
+
+      <div class="actions">
+        <button class="btn btn--primary btn--full" id="generateBtn">Generate batch</button>
+        <button class="btn btn--ghost" id="clearBtn">Clear results</button>
+      </div>
+
+      <p class="error-banner" id="formError" hidden></p>
+
+    </section>
+
+    <section class="panel panel--results" aria-label="Results">
+      <div class="results-grid" id="resultsGrid">
+        <div class="empty-state" id="emptyState">
+          <p>Generated images will line up here, in order, as they finish.</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <template id="cardTemplate">
+    <article class="card" data-status="queued">
+      <div class="card__frame">
+        <img class="card__image" alt="" hidden />
+        <div class="card__placeholder">
+          <span class="card__index"></span>
+          <span class="card__status-label"></span>
+        </div>
+      </div>
+      <p class="card__prompt"></p>
+      <div class="card__error" hidden></div>
+      <button class="card__retry" hidden>Retry</button>
+    </article>
+  </template>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>

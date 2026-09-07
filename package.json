@@ -1,0 +1,12 @@
+{
+  "name": "flux-klein-batch-lab",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Batch image generation UI for Cloudflare Workers AI's FLUX.2 [klein] 4B, deployable on Netlify.",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev": "netlify dev"
+  }
+}

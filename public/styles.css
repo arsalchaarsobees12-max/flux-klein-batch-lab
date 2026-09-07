@@ -1,0 +1,519 @@
+/* ---------------------------------------------------------------
+   Flux Batch Lab — design tokens
+   Palette borrows from print-production proof sheets: paper base,
+   ink text, and stamp colors (red = action/running, green = done,
+   blue = informational, deep red = error).
+------------------------------------------------------------------ */
+:root {
+  --paper: #f7f6f2;
+  --paper-raised: #ffffff;
+  --ink: #1b1b18;
+  --ink-soft: #6b6a63;
+  --ink-faint: #9c9a91;
+  --line: #dad7cd;
+  --line-strong: #c2beae;
+
+  --accent: #e8432b;
+  --accent-soft: #fce4de;
+  --success: #3f7a56;
+  --success-soft: #e2ede6;
+  --error: #b3261e;
+  --error-soft: #f7e3e1;
+  --info: #2f5d8a;
+  --info-soft: #e2ecf4;
+
+  --font-body: "Space Grotesk", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --radius: 3px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+button,
+input,
+textarea {
+  font-family: inherit;
+  color: inherit;
+}
+
+/* ---------------------------------------------------------------
+   Top bar
+------------------------------------------------------------------ */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.1rem 1.75rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--paper-raised);
+  flex-wrap: wrap;
+}
+
+.topbar__identity {
+  margin-right: auto;
+}
+
+.topbar__title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.topbar__subtitle {
+  margin: 0.15rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+}
+
+.topbar__status {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.badge {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid transparent;
+}
+
+.badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.badge--idle {
+  background: var(--paper);
+  border-color: var(--line);
+  color: var(--ink-soft);
+}
+
+.badge--running {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.badge--done {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.badge--error {
+  background: var(--error-soft);
+  color: var(--error);
+}
+
+/* ---------------------------------------------------------------
+   Buttons
+------------------------------------------------------------------ */
+.btn {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.9rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--line-strong);
+  background: var(--paper-raised);
+  color: var(--ink);
+  padding: 0.65rem 1.1rem;
+  cursor: pointer;
+  transition: transform 0.08s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.btn:hover:not(:disabled) {
+  border-color: var(--ink);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.btn--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff9f7;
+}
+
+.btn--primary:hover:not(:disabled) {
+  background: #d13a24;
+  border-color: #d13a24;
+}
+
+.btn--ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--ink-soft);
+}
+
+.btn--ghost:hover:not(:disabled) {
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
+
+.btn--full {
+  width: 100%;
+}
+
+/* ---------------------------------------------------------------
+   Layout
+------------------------------------------------------------------ */
+.layout {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 400px 1fr;
+  min-height: 0;
+}
+
+@media (max-width: 880px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.panel {
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+.panel--input {
+  border-right: 1px solid var(--line);
+  background: var(--paper-raised);
+  display: flex;
+  flex-direction: column;
+  gap: 1.35rem;
+}
+
+@media (max-width: 880px) {
+  .panel--input {
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+  }
+}
+
+/* ---------------------------------------------------------------
+   Form fields
+------------------------------------------------------------------ */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.field__label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.field label {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.field__hint {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--ink-faint);
+  font-weight: 400;
+}
+
+.field__hint--note {
+  margin-top: -0.75rem;
+}
+
+textarea#promptsInput {
+  min-height: 220px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  background: var(--paper);
+}
+
+textarea#promptsInput:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.dropzone {
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+  padding: 0.9rem;
+  cursor: pointer;
+  background: var(--paper);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.dropzone:hover,
+.dropzone:focus-visible,
+.dropzone.is-dragover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  outline: none;
+}
+
+.dropzone__thumbs {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+
+.dropzone__thumbs:empty {
+  margin: 0;
+}
+
+.ref-thumb {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+}
+
+.ref-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.ref-thumb button {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 16px;
+  height: 16px;
+  line-height: 14px;
+  text-align: center;
+  border: none;
+  border-radius: 50%;
+  background: rgba(27, 27, 24, 0.75);
+  color: #fff;
+  font-size: 0.7rem;
+  cursor: pointer;
+  padding: 0;
+}
+
+.dropzone__prompt {
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+.field--settings {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.6rem;
+}
+
+.setting {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.setting label {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+
+.setting input {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.45rem 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  background: var(--paper);
+  width: 100%;
+}
+
+.setting input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.actions {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.error-banner {
+  margin: 0;
+  padding: 0.65rem 0.8rem;
+  background: var(--error-soft);
+  color: var(--error);
+  border-radius: var(--radius);
+  font-size: 0.82rem;
+}
+
+/* ---------------------------------------------------------------
+   Results grid (contact sheet)
+------------------------------------------------------------------ */
+.panel--results {
+  background: var(--paper);
+}
+
+.results-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1rem;
+  align-content: start;
+}
+
+.empty-state {
+  grid-column: 1 / -1;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  padding: 3rem 1.5rem;
+  text-align: center;
+  color: var(--ink-faint);
+  font-size: 0.9rem;
+}
+
+.card {
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.card__frame {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  background: var(--paper);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 1px solid var(--line);
+}
+
+.card__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.card__placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--ink-faint);
+}
+
+.card__index {
+  font-family: var(--font-mono);
+  font-size: 1.4rem;
+  font-weight: 500;
+  color: var(--ink-faint);
+}
+
+.card__status-label {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+}
+
+.card[data-status="processing"] .card__placeholder {
+  color: var(--accent);
+}
+
+.card[data-status="processing"] .card__frame {
+  background: var(--accent-soft);
+}
+
+.card[data-status="error"] .card__frame {
+  background: var(--error-soft);
+}
+
+.card[data-status="error"] .card__placeholder {
+  color: var(--error);
+}
+
+.card__prompt {
+  margin: 0;
+  padding: 0.6rem 0.7rem 0.4rem;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--ink-soft);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.card__error {
+  margin: 0 0.7rem 0.5rem;
+  font-size: 0.74rem;
+  color: var(--error);
+}
+
+.card__retry {
+  margin: 0 0.7rem 0.7rem;
+  align-self: flex-start;
+  background: transparent;
+  border: 1px solid var(--error);
+  color: var(--error);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.card__retry:hover {
+  background: var(--error);
+  color: #fff;
+}
+
+/* Spinner pulse for the processing state */
+.card[data-status="processing"] .card__index {
+  animation: pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
