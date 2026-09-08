@@ -3,9 +3,28 @@
 // Proxies one image-generation request to Cloudflare Workers AI's
 // FLUX.2 [klein] 4B model (@cf/black-forest-labs/flux-2-klein-4b).
 //
+// Supports multiple Cloudflare accounts as a fallback chain: if the
+// account currently in use has run out of its daily free neuron
+// allowance (or is briefly rate-limited / times out), the request is
+// automatically retried on the next configured account before giving up.
+//
 // This exists as a server-side function (rather than calling Cloudflare
-// straight from the browser) because it needs your CF_API_TOKEN, which
-// must never be exposed to the client.
+// straight from the browser) because it needs your CF_API_TOKEN(s),
+// which must never be exposed to the client.
+//
+// --- Configuring accounts ---
+// One account (works exactly as before):
+//   CF_ACCOUNT_ID=...
+//   CF_API_TOKEN=...
+//
+// Multiple accounts (tried in this order until one succeeds):
+//   CF_ACCOUNT_ID_1=...   CF_API_TOKEN_1=...
+//   CF_ACCOUNT_ID_2=...   CF_API_TOKEN_2=...
+//   CF_ACCOUNT_ID_3=...   CF_API_TOKEN_3=...
+//   (as many numbered pairs as you like — the app finds them automatically)
+//
+// You can mix both styles: an unnumbered pair is tried first, then any
+// numbered pairs in order.
 //
 // Expects a JSON POST body:
 //   {
@@ -51,41 +70,34 @@ function dataUrlToBlob(dataUrl) {
   return new Blob([buffer], { type: mime });
 }
 
-export default async (request, context) => {
-  if (request.method === "OPTIONS") {
-    return jsonResponse({ ok: true });
+// Reads however many Cloudflare account/token pairs are configured and
+// returns them as an ordered list to try. See the header comment above
+// for the environment variable naming convention.
+function loadAccounts() {
+  const accounts = [];
+
+  if (process.env.CF_ACCOUNT_ID && process.env.CF_API_TOKEN) {
+    accounts.push({
+      accountId: process.env.CF_ACCOUNT_ID,
+      apiToken: process.env.CF_API_TOKEN,
+      label: "primary",
+    });
   }
 
-  if (request.method !== "POST") {
-    return jsonResponse({ error: "Use POST" }, 405);
+  let i = 1;
+  while (process.env[`CF_ACCOUNT_ID_${i}`] && process.env[`CF_API_TOKEN_${i}`]) {
+    accounts.push({
+      accountId: process.env[`CF_ACCOUNT_ID_${i}`],
+      apiToken: process.env[`CF_API_TOKEN_${i}`],
+      label: `account ${i}`,
+    });
+    i++;
   }
 
-  const accountId = process.env.CF_ACCOUNT_ID;
-  const apiToken = process.env.CF_API_TOKEN;
+  return accounts;
+}
 
-  if (!accountId || !apiToken) {
-    return jsonResponse(
-      {
-        error:
-          "Server is missing CF_ACCOUNT_ID / CF_API_TOKEN environment variables. Set them in Netlify's site settings.",
-      },
-      500
-    );
-  }
-
-  let payload;
-  try {
-    payload = await request.json();
-  } catch {
-    return jsonResponse({ error: "Request body must be JSON" }, 400);
-  }
-
-  const { prompt, width, height, guidance, seed, referenceImages } = payload || {};
-
-  if (!prompt || typeof prompt !== "string" || !prompt.trim()) {
-    return jsonResponse({ error: "\"prompt\" is required" }, 400);
-  }
-
+function buildForm({ prompt, width, height, guidance, seed, referenceImages }) {
   const form = new FormData();
   form.append("prompt", prompt.trim());
   if (width) form.append("width", String(width));
@@ -108,15 +120,25 @@ export default async (request, context) => {
     });
   }
 
+  return form;
+}
+
+// Tries a single Cloudflare account. `retryable: true` means "this
+// account couldn't serve the request right now" (out of quota, rate
+// limited, or a timeout) — worth trying the next account for. `false`
+// means the request itself was the problem (e.g. bad prompt), so
+// retrying on another account would just fail the same way.
+async function callAccount(account, payload) {
+  const form = buildForm(payload);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
   try {
     const cfResponse = await fetch(
-      `${CF_ENDPOINT_BASE}/${accountId}/ai/run/${MODEL_ID}`,
+      `${CF_ENDPOINT_BASE}/${account.accountId}/ai/run/${MODEL_ID}`,
       {
         method: "POST",
-        headers: { Authorization: `Bearer ${apiToken}` },
+        headers: { Authorization: `Bearer ${account.apiToken}` },
         body: form,
         signal: controller.signal,
       }
@@ -124,42 +146,112 @@ export default async (request, context) => {
 
     const contentType = cfResponse.headers.get("content-type") || "";
 
-    // Normal path: Cloudflare wraps the result as { result: { image }, success, errors }.
     if (contentType.includes("application/json")) {
       const data = await cfResponse.json();
       const image = data?.result?.image || data?.image;
+      const rateLimited = cfResponse.status === 429;
 
       if (!cfResponse.ok || data?.success === false || !image) {
         const message =
           data?.errors?.map((e) => e.message).join("; ") ||
           `Cloudflare returned ${cfResponse.status}`;
-        return jsonResponse({ error: message }, cfResponse.status || 502);
+        return {
+          ok: false,
+          retryable: rateLimited,
+          status: cfResponse.status || 502,
+          message,
+        };
       }
 
-      return jsonResponse({ image });
+      return { ok: true, image };
     }
 
     // Fallback path: some Workers AI image models stream raw bytes back
     // instead of JSON+base64. Handle that too, defensively.
     if (contentType.startsWith("image/")) {
       const buffer = Buffer.from(await cfResponse.arrayBuffer());
-      return jsonResponse({ image: buffer.toString("base64") });
+      return { ok: true, image: buffer.toString("base64") };
     }
 
     const text = await cfResponse.text();
-    return jsonResponse(
-      { error: `Unexpected response from Cloudflare: ${text.slice(0, 300)}` },
-      502
-    );
+    return {
+      ok: false,
+      retryable: cfResponse.status === 429,
+      status: 502,
+      message: `Unexpected response from Cloudflare: ${text.slice(0, 300)}`,
+    };
   } catch (err) {
     const message =
       err.name === "AbortError"
         ? "Request to Cloudflare timed out"
         : err.message || "Unknown error calling Cloudflare";
-    return jsonResponse({ error: message }, 500);
+    // Network errors / timeouts are also worth retrying on another account.
+    return { ok: false, retryable: true, status: 500, message };
   } finally {
     clearTimeout(timeout);
   }
+}
+
+export default async (request, context) => {
+  if (request.method === "OPTIONS") {
+    return jsonResponse({ ok: true });
+  }
+
+  if (request.method !== "POST") {
+    return jsonResponse({ error: "Use POST" }, 405);
+  }
+
+  const accounts = loadAccounts();
+  if (!accounts.length) {
+    return jsonResponse(
+      {
+        error:
+          "Server has no Cloudflare accounts configured. Set CF_ACCOUNT_ID / CF_API_TOKEN " +
+          "(and optionally CF_ACCOUNT_ID_2 / CF_API_TOKEN_2, CF_ACCOUNT_ID_3 / CF_API_TOKEN_3, ...) " +
+          "in Netlify's site settings.",
+      },
+      500
+    );
+  }
+
+  let payload;
+  try {
+    payload = await request.json();
+  } catch {
+    return jsonResponse({ error: "Request body must be JSON" }, 400);
+  }
+
+  const { prompt } = payload || {};
+  if (!prompt || typeof prompt !== "string" || !prompt.trim()) {
+    return jsonResponse({ error: '"prompt" is required' }, 400);
+  }
+
+  let lastError = null;
+
+  for (const account of accounts) {
+    const result = await callAccount(account, payload);
+
+    if (result.ok) {
+      return jsonResponse({ image: result.image });
+    }
+
+    lastError = result;
+
+    if (!result.retryable) {
+      // A real problem with the request itself — trying another account
+      // won't fix it, so stop here instead of burning everyone's quota.
+      return jsonResponse({ error: result.message }, result.status);
+    }
+    // Otherwise this account is out of quota / rate-limited / timed out —
+    // loop continues to the next configured account, if there is one.
+  }
+
+  return jsonResponse(
+    {
+      error: `All ${accounts.length} Cloudflare account(s) are unavailable right now. Last error: ${lastError?.message}`,
+    },
+    503
+  );
 };
 
 export const config = {
