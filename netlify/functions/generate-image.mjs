@@ -84,14 +84,15 @@ function loadAccounts() {
     });
   }
 
-  let i = 1;
-  while (process.env[`CF_ACCOUNT_ID_${i}`] && process.env[`CF_API_TOKEN_${i}`]) {
-    accounts.push({
-      accountId: process.env[`CF_ACCOUNT_ID_${i}`],
-      apiToken: process.env[`CF_API_TOKEN_${i}`],
-      label: `account ${i}`,
-    });
-    i++;
+  const MAX_NUMBERED_ACCOUNTS = 20;
+  for (let i = 1; i <= MAX_NUMBERED_ACCOUNTS; i++) {
+    if (process.env[`CF_ACCOUNT_ID_${i}`] && process.env[`CF_API_TOKEN_${i}`]) {
+      accounts.push({
+        accountId: process.env[`CF_ACCOUNT_ID_${i}`],
+        apiToken: process.env[`CF_API_TOKEN_${i}`],
+        label: `account ${i}`,
+      });
+    }
   }
 
   return accounts;
